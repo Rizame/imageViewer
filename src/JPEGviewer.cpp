@@ -1,5 +1,5 @@
 #include "JPEGviewer.h"
 
 Glib::RefPtr<Gdk::Pixbuf> JPEGviewer::load(const std::string &path) {
-  const std::string a;
+  return nullptr;
 }
