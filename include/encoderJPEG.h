@@ -5,6 +5,6 @@
 
 class encoderJPEG : public Encoder {
 public:
-  bool encodeImage(const std::string &fileName,
+  bool encodeImage(const Glib::RefPtr<Gdk::Pixbuf> pixbuf,
                    const std::string &newName) override;
 };

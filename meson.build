@@ -9,7 +9,8 @@ include_dir = include_directories('include')
 sources = files(
   'main.cpp',
   'src/PPMviewer.cpp',
-  'src/viewer.cpp'# All .cpp files recursively in src
+  'src/viewer.cpp',
+  'src/encoderJPEG.cpp',
 )
 
 executable('imageViewerGtk', sources,

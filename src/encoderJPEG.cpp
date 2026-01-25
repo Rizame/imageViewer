@@ -14,6 +14,12 @@ static const int Q_CHROMINANCE[8][8] = {
     {99, 99, 99, 99, 99, 99, 99, 99}, {99, 99, 99, 99, 99, 99, 99, 99},
     {99, 99, 99, 99, 99, 99, 99, 99}, {99, 99, 99, 99, 99, 99, 99, 99}};
 
+static const int ZIGZAG_ORDER[64] = {
+    0,  1,  8,  16, 9,  2,  3,  10, 17, 24, 32, 25, 18, 11, 4,  5,
+    12, 19, 26, 33, 41, 48, 56, 49, 42, 35, 28, 21, 13, 6,  7,  14,
+    20, 27, 34, 43, 50, 57, 58, 51, 44, 37, 29, 22, 15, 23, 30, 38,
+    45, 52, 59, 60, 53, 46, 39, 31, 47, 54, 61, 62, 55, 63};
+
 void computeDCT(const double (&input)[8][8], double (&output)[8][8]) {
 
   for (int v = 0; v < 8; v++) {
@@ -98,6 +104,18 @@ void quantizeBlock(const double data[8][8], const int table[8][8],
     }
   }
 }
+void zigzagFlattening(const int (&input)[8][8], int (&output)[64]) {
+  for (int i = 0; i < 64; i++) {
+    int z = ZIGZAG_ORDER[i];
+    int y = z / 8;
+    int x = z % 8;
+    output[i] = input[y][x];
+  }
+}
+
+int huffmanEncoding(const int (&input)[64], std::ofstream &file, int last_dc) {
+  return 0;
+}
 
 bool encoderJPEG::encodeImage(const Glib::RefPtr<Gdk::Pixbuf> pixbuf,
                               const std::string &newName) {
@@ -115,9 +133,17 @@ bool encoderJPEG::encodeImage(const Glib::RefPtr<Gdk::Pixbuf> pixbuf,
   chrominanceDownsampling(m_pixels, m_l, m_cb, m_cr, w, h);
   delete[] m_pixels;
   double input[8][8];
-  double output[8][8];
+  double dct[8][8];
   int quantized[8][8];
+  int flattened[64];
 
+  int last_dc_l = 0;
+  int last_dc_cb = 0;
+  int last_dc_cr = 0;
+  std::ofstream outputFile("encoded.jpeg");
+  // CREATE AND FILL THE HEADER OF THE JPEG
+
+  // DCT -> quantization
   for (int y = 0; y < h; y += 16) {
     for (int x = 0; x < w; x += 16) {
 
@@ -126,20 +152,29 @@ bool encoderJPEG::encodeImage(const Glib::RefPtr<Gdk::Pixbuf> pixbuf,
           int px = x + (dx * 8);
           int py = y + (dy * 8);
           fetch8x8Block(m_l, input, w, h, px, py);
-          computeDCT(input, output);
-          quantizeBlock(output, Q_LUMINANCE, quantized);
+          computeDCT(input, dct);
+          quantizeBlock(dct, Q_LUMINANCE, quantized);
+          zigzagFlattening(quantized, flattened);
+          huffmanEncoding(flattened, outputFile, last_dc_l);
+          last_dc_l = flattened[0];
         }
       }
       fetch8x8Block(m_cb, input, w / 2, h / 2, x / 2, y / 2);
-      computeDCT(input, output);
-      quantizeBlock(output, Q_CHROMINANCE, quantized);
+      computeDCT(input, dct);
+      quantizeBlock(dct, Q_CHROMINANCE, quantized);
+      zigzagFlattening(quantized, flattened);
+      huffmanEncoding(flattened, outputFile, last_dc_cb);
+      last_dc_cb = flattened[0];
 
       fetch8x8Block(m_cr, input, w / 2, h / 2, x / 2, y / 2);
-      computeDCT(input, output);
-      quantizeBlock(output, Q_CHROMINANCE, quantized);
+      computeDCT(input, dct);
+      quantizeBlock(dct, Q_CHROMINANCE, quantized);
+      zigzagFlattening(quantized, flattened);
+      huffmanEncoding(flattened, outputFile, last_dc_cr);
+      last_dc_cr = flattened[0];
     }
   }
-  // DCT -> quantization
+  outputFile.close();
 
   return true;
 }
